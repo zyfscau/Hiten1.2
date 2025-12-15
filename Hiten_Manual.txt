@@ -1,0 +1,483 @@
+Hiten User Manual
+Hiten (high-throughput transcript end mapping system) is an organellar RNA end mapping workflow built upon the MeCi algorithm. By aligning long non-coding RNA sequencing (lncRNA-seq) data generated from in vitro circularized RNAs to both the organellar reference genomes and intron-spliced transcript sequences, Hiten identifies reads containing circle junction. Following low-confidence junction read filtering, coordinate conversion, RNA end clustering and annotation, Hiten generates a comprehensive dataset that includes high-confidence organellar RNA molecules, mapped 5′ and 3′ termini, and detailed poly(A) information.
+
+What can Hiten do? 
+(1)	Detect high-confidence organellar circle junction reads from the lncRNA-seq data of the in vitro circularized plant RNAs; 
+(2)	Identify and characterize organellar poly(A) tails, including their sequences, length distributions, and nucleotide composition.
+(3)	Output organellar RNA molecules and annotated 5′ and 3′ end.
+
+Overview of the Hiten Pipeline
+1. Identification of organellar circle junction reads
+1.1 Perform quality control and adapter removal using cutadapt to obtain PE clean reads;
+1.2 Merge the PE clean reads using FLASH, generating merged reads and unmerged reads (unmerged R1, unmerged R2);
+1.3 Generate reverse-complement sequences of unmerged R1 reads using seqkit;
+1.4 Combine the merged and unmerged read files using cat;
+1.5 Perform a second round of quality filtering using cutadapt to remove low-quality or gaps introduced during PE-read merging;
+1.6 Identify circle-junction reads using MeCi by aligning reads to both the organellar reference genomes and intron-spliced sequences.
+2. Generation of high-confidence junction reads and poly(A) information
+2.1 Filtering of junction reads with multiple alignments
+Filtering criteria applied to both reference-genome and intron-spliced alignments:
+(1)	Junctions mapping to ≥3 genomic locations are discarded;
+(2)	Junctions mapping to exactly two locations are retained only if their 5′ and 3′ ends, strand orientation, and numbers of non-encoded nucleotides are identical.
+2.2	Poly(A) filtering
+(1)	Junction reads with 1~3 non-encoded nucleotides at the junction are fully retained.
+(2)	Junction reads with 4~100 non-encoded nucleotides are retained only if ≥70% of the residues are adenosines.
+2.3 Extraction of poly(A) information
+After multiple alignment and poly(A) filtering, poly(A) sequences, lengths, and nucleotide compositions are extracted.
+2.4 Integration of biological replicates / treatments
+Results from individual datasets are combined using VLOOKUP to integrate junction-read information across replicates or treatments.
+2.5 Occurrence based filtering
+Only junction reads that identified at least twice across replicates or treatments are retained to generate the final set of high-confidence junction reads.
+3. Coordinate conversion
+3.1 Converting intron-spliced read coordinates
+Using the correspondence between intron-spliced sequences and the reference genome, junction positions are converted to reference-genome coordinates.
+3.2 Identification of full-length (FL) transcripts
+Junction reads corresponding to FL transcripts are identified and incorporated into the reference-genome alignment results to obtain a complete set of high-confidence junction reads.
+3.3 Adjusting for circular organellar genomes
+Because organellar genomes are circular, reads spanning the genome-junction require coordinate correction. Using high-confidence junction read positions and non-encoded nucleotides, Hiten performs a final round of coordinate adjustment.
+4. RNA-end inference, clustering, and annotation
+4.1 Deriving organellar RNA molecules
+Using junction read information, Hiten identifies the RNA molecule’s 5′ and 3′ ends, strand orientation, and non-encoded nucleotide additions.
+4.2 Termini clustering
+RNA end positions are clustered to generate final sets of organellar 5′ and 3′ termini.
+4.3 Annotation of RNA ends
+Using reference-genome annotations, termini are assigned to genomic features (CDS and UTR of protein-coding genes, trn genes, rrn genes, or intergenic regions).
+
+1 Commands and Associated Files
+To facilitate use across different plant organelle genomes, we provide four sets of analysis scripts, each corresponding to a specific organelle genome and its associated intron-spliced sequences.
+All script sets, annotation files, and genome sequences are organized into species–organelle–specific folders as described below:
+(1) Rice mitochondrion
+Reference genome ID: NC_011033.1 (file name: NC_011033.1.fasta)
+Intron-spliced sequence file: Rice-mitochondrion-chloroplast-intron-spliced-sequences-NC_011033.1.fasta
+Folder: Rice mitochondrion NC_011033.1
+(2) Rice chloroplast
+Reference genome ID: MW001303.1 (file name: MW001303.1.fasta)
+Intron-spliced sequence file: Rice-chloroplast-intron-spliced-sequences-MW001303.1.fasta
+Folder: Rice chloroplast MW001303.1
+(3) Maize mitochondrion
+Reference genome ID: NC_007982.1 (file name: NC_007982.1.fa)
+Intron-spliced sequence file: Maize-mitochondrion-intron-sequence-NC_007982.1.fasta
+Folder: Maize mitochondrion NC_007982.1
+(4) Maize chloroplast
+Reference genome ID: KF241981.1 (file name: KF241981.1.fasta)
+Intron-spliced sequence file: Maize-chloroplast-intron-spliced-sequences-KF241981.1.fasta
+Folder: Maize chloroplast KF241981.1
+
+Select the folder corresponding to the organelle of interest and run:
+python Hiten_scripts.py
+
+2 Preparation Before Use
+
+System Requirements
+
+Linux operating system
+
+bash 4.0 or higher
+
+Environment Setup
+Install Conda
+Create the cutadapt environment
+conda create -n cutadaptenv cutadapt -y
+Create the RNA-Seq environment
+
+conda create -n rna-seq  seqkit -y
+
+Required Tools and Scripts：
+
+cutadapt (Within the cutadaptenv environment)
+
+seqkit (Within the RNA-seq environment)
+
+MeCi_1.2
+
+Input File Preparation
+
+Ensure the following files are present in the working directory：
+
+Raw Data: Paired-end sequencing files, read1 files, read2 files.
+
+Reference Genome
+
+intron-spliced sequences
+
+MeCi_v1.2  MeCi Analysis Tool
+Hiten_scripts.py and its accompanying sub-scripts:Taking the rice chloroplast genome as an example
+Circle_junction_identification.py
+Read_junction_read_details_file.py
+File_creation.py
+High_confidence_junction_read_screen.py
+Junction_position_conversion_from_intron-spliced_to_reference_genome-os-chloroplast-MW001303.1.py
+FL_transcript_screen_from_intron-spliced_junction_reads-os-plastid-MW001303.1.py
+Addition_of_FL_to_reference_genome_junction_reads.py
+Position_conversion_for_transcripts_derived_from_genome_junction-os-chloroplast-MW001303.1.py
+End_clustering.py
+End_annotation.py
+
+A CSV annotation file named 5_and_3_end_annotation.csv.
+
+3. Example Execution
+
+After preparing the input files and setting up the conda environment, run the following command:python Hiten_scripts.py
+
+Main Output Files
+
+f"{self.sample_prefix}_flash_statistics.txt"：Contains detailed statistics on sequence assembly.
+
+f"{self.sample_prefix}.mitochondrion-{genome1_short}-100~3-junction_read_details_intron-spliced"  Alignment Results of Intron-Spliced Sequences.
+f"{self.sample_prefix}.mitochondrion-{genome2_short}-100~3-ref_genome_ junction_read_details"  Genome Alignment Results.
+
+The file suffix flash_statistics.txt is fixed and constant, while self.sample_prefix changes dynamically based on the recognized input filenames, and {genome1_short} and {genome2_short} represent genome ID.
+
+High_confidence_transcripts.csv
+
+5'end_information.csv
+
+3'end_information.csv 
+
+output file 1：self.sample_prefix}_flash_statistics.txt
+The content of {self.sample_prefix}_flash_statistics.txt is as follows (using 5-+1 as an example input file prefix):
+FLASH Sequence Merging Statistics
+========================
+Sample: 5-+1
+Execution time: 2025-11-27 15:02:50.967394
+
+FLASH Output:
+-------------
+[FLASH] Starting FLASH v1.2.11
+[FLASH] Fast Length Adjustment of SHort reads
+[FLASH]  
+[FLASH] Input files:
+[FLASH]     5-+1_2.clean.fastq.gz
+[FLASH]     5-+1_1.clean.fastq.gz
+[FLASH]  
+[FLASH] Output files:
+[FLASH]     ./5-+1_.extendedFrags.fastq
+[FLASH]     ./5-+1_.notCombined_1.fastq
+[FLASH]     ./5-+1_.notCombined_2.fastq
+[FLASH]     ./5-+1_.hist
+[FLASH]     ./5-+1_.histogram
+[FLASH]  
+[FLASH] Parameters:
+[FLASH]     Min overlap:           10
+[FLASH]     Max overlap:           150
+[FLASH]     Max mismatch density:  0.250000
+[FLASH]     Allow "outie" pairs:   false
+[FLASH]     Cap mismatch quals:    false
+[FLASH]     Combiner threads:      32
+[FLASH]     Input format:          FASTQ, phred_offset=33
+[FLASH]     Output format:         FASTQ, phred_offset=33
+[FLASH]  
+[FLASH] Starting reader and writer threads
+[FLASH] Starting 32 combiner threads
+[FLASH] Processed 25000 read pairs
+[FLASH] Processed 50000 read pairs
+[FLASH] Processed 75000 read pairs
+
+......
+[FLASH] Processed 70975000 read pairs
+[FLASH] Processed 71000000 read pairs
+[FLASH] Processed 71025000 read pairs
+[FLASH] Processed 71050000 read pairs
+[FLASH] Processed 71075000 read pairs
+[FLASH] Processed 71100000 read pairs
+[FLASH] Processed 71125000 read pairs
+[FLASH] Processed 71150000 read pairs
+[FLASH] Processed 71175000 read pairs
+[FLASH] Processed 71200000 read pairs
+[FLASH] Processed 71225000 read pairs
+[FLASH] Processed 71250000 read pairs
+[FLASH] Processed 71275000 read pairs
+[FLASH] Processed 71300000 read pairs
+[FLASH] Processed 71301718 read pairs
+[FLASH]  
+[FLASH] Read combination statistics:
+[FLASH]     Total pairs:      71301718
+[FLASH]     Combined pairs:   29561749
+[FLASH]     Uncombined pairs: 41739969
+[FLASH]     Percent combined: 41.46%
+[FLASH]  
+[FLASH] Writing histogram files.
+[FLASH]  
+[FLASH] FLASH v1.2.11 complete!
+[FLASH] 68.007 seconds elapsed
+
+
+Key Statistics Summary:
+------------------
+Total pairs: 71301718
+
+Output files:
+---------
+- 5-+1_.extendedFrags.fastq (15.6 GB)
+- 5-+1_.notCombined_1.fastq (14.5 GB)
+- 5-+1_.notCombined_2.fastq (14.5 GB)
+
+The output files with the following naming patterns share an identical format and contain the same set of result files:
+
+{self.sample_prefix}.mitochondrion-{genome1_short}-100~3- junction_read_details_intron-spliced
+
+{self.sample_prefix}.mitochondrion-{genome2_short}-100~3-ref_genome_ junction_read_details
+
+Each output directory contains the following consistent result files: circrna_details.xls,junction_read_details.xls,Poly(A)_junction_reads.bed,Poly(A)_junction_reads.fa.
+
+output file 2: circrna_details.xls
+circrna_id	chr	start	end	strand	count	reads
+MT|100978|101366|1|+	MT	100978	101366	+	1	E00454:607:H527CCCX2:1:1104:21014:13773
+MT|100979|101212|0|+	MT	100979	101212	+	1	E00454:607:H527CCCX2:1:1105:5558:32039
+MT|100980|101366|0|+	MT	100980	101366	+	1	E00454:607:H527CCCX2:1:1102:3569:16604
+MT|101305|102064|1|+	MT	101305	102064	+	1	E00454:607:H527CCCX2:1:1103:24779:31969
+MT|101743|101995|0|+	MT	101743	101995	+	1	E00454:607:H527CCCX2:1:1107:6380:2135
+MT|102979|103141|0|+	MT	102979	103141	+	1	E00454:607:H527CCCX2:1:1101:3894:73106
+MT|111279|111429|1|+	MT	111279	111429	+	2	E00454:607:H527CCCX2:1:1106:15656:31072,E00454:607:H527CCCX2:1:1106:15716:31353
+MT|111279|111429|2|+	MT	111279	111429	+	2	E00454:607:H527CCCX2:1:1103:25205:17307,E00454:607:H527CCCX2:1:1103:26859:15250
+MT|111279|111451|2|+	MT	111279	111451	+	1	E00454:607:H527CCCX2:1:1105:29772:7919
+MT|111279|111489|1|+	MT	111279	111489	+	1	E00454:607:H527CCCX2:1:1101:13920:47544
+
+...
+MT|111284|111491|0|+	MT	111284	111491	+	1	E00454:607:H527CCCX2:1:1106:32096:52836
+MT|111285|111589|-3|+	MT	111285	111589	+	1	E00454:607:H527CCCX2:1:1106:15229:31881
+MT|125944|126365|1|+	MT	125944	126365	+	1	E00454:607:H527CCCX2:1:1105:14072:69045
+MT|125991|126215|2|+	MT	125991	126215	+	1	E00454:607:H527CCCX2:1:1106:19309:64580
+MT|128095|127882|1|-	MT	128095	127882	-	2	E00454:607:H527CCCX2:1:1104:15554:36979,E00454:607:H527CCCX2:1:1104:15585:36961
+
+Columns of output file are split by tabs ("\t" in shell and perl).
+Each column gives information of a predicted circRNA:
+Column 1: ID of a predicted circRNA in the pattern of "reference genome|start position|end position|repetitive or non-encoded bases at circle junction|strand orientation";
+Column 2: reference genome or chromosome of a predicted circRNA;
+Column 3: start location of a predicted circRNA on the reference genome or chromosome;
+Column 4: end location of a predicted circRNA on the reference genome or chromosome;
+Column 5: strand orientation of a predicted circRNA;
+Column 6: junction read count of a predicted circRNA;
+Column 7: supporting junction read ID (split by ",").
+
+PS:
+The circRNA ID is composed of 5 parts: reference genome or chromosome, start location, end location, number of repetitive and non-encoded bases at circle junction "Z", and strand orientation.
+If number Z = 0, it means the circRNA have no overlap or gap at circle junction and it has a determined location.
+If number Z > 0, it means the circRNA has repetitive bases at circle junction, and the circularization site is uncertain.
+   For example, MT|128095|127882|1|-, the circRNA is one of the following two locations:
+   128094..127882 (5'..3' end), and 128095..127883
+If number Z < 0, it means there are non-encoded bases at circle site, and the position of the circRNA is unambiguous.
+   For example, MT|111285|111589|-3|+, 
+   the 5' and 3' ends of this circRNA are located at 111285 and 111589, respectively, and there are 3 non-encoded bases between start and end positions of the circularization site.
+
+output file 3:junction_read_details.xls
+read_id	strand	query1_start	query1_end	hit1_start	hit1_end	query2_start	query2_end	hit2_start	hit2_end	circrna_id	read_type
+E00454:607:H527CCCX2:1:1101:10044:50428	+	1	24	400235	400258	25	175	400408	400558	MT|400235|400558|0|+	unique
+E00454:607:H527CCCX2:1:1101:10429:41884	-	1	104	276855	276958	105	125	276815	276835	MT|276958|276815|0|-	unique
+E00454:607:H527CCCX2:1:1101:10551:44064	+	1	17	400877	400893	18	152	401514	401648	MT|400877|401648|0|+	unique
+E00454:607:H527CCCX2:1:1101:10561:57864	+	1	24	400236	400259	25	215	400485	400675	MT|400236|400675|0|+	unique
+E00454:607:H527CCCX2:1:1101:10703:28540	+	1	111	402100	402210	111	150	402421	402460	MT|402100|402460|1|+	unique
+E00454:607:H527CCCX2:1:1101:10703:40741	+	1	70	400234	400303	70	286	400665	400881	MT|400234|400881|1|+	unique
+E00454:607:H527CCCX2:1:1101:10724:10046	+	1	175	402102	402276	175	260	402380	402465	MT|402102|402465|1|+	unique
+E00454:607:H527CCCX2:1:1101:10774:44486	+	1	129	402105	402233	130	210	402372	402452	MT|402105|402452|0|+	unique
+E00454:607:H527CCCX2:1:1101:10774:72192	-	1	150	243049	243198	151	180	242952	242981	MT|243198|242952|0|-	unique
+E00454:607:H527CCCX2:1:1101:10784:72315	-	1	118	442478	442595	119	147	442336	442364	MT|442595|442336|0|-	unique
+
+...
+E00454:607:H527CCCX2:1:1101:14732:37454	+	1	76	402098	402173	75	116	402426	402467	MT|402098|402467|2|+	unique
+E00454:607:H527CCCX2:1:1101:14763:34975	-	1	61	454999	455059	62	95	454771	454804	MT|455059|454771|0|-	multiple
+E00454:607:H527CCCX2:1:1101:14763:34975	-	1	61	523936	523996	62	95	523708	523741	MT|523996|523708|0|-	multiple
+E00454:607:H527CCCX2:1:1101:14793:52748	+	1	86	172572	172657	87	145	172679	172737	MT|172572|172737|0|+	multiple
+E00454:607:H527CCCX2:1:1101:14793:52748	+	1	86	71952	72037	87	145	72059	72117	MT|71952|72117|0|+	multiple
+Columns of output file are split by tabs ("\t" in shell and perl).
+Each column gives information of a read which support at least one circRNA:
+# two segments of a circle junction read have different mapped regions on the reference genome.
+Column  1: read ID;
+Column  2: strand orietation of the read mapped on the reference genome;
+Column  3: start position of 1st segment on the read;
+Column  4: end position of 1st segment on the read;
+Column  5: start position of 1st mapped region on the genome;
+Column  6: end position of 1st mapped region on the genome;
+Column  7: start position of 2nd segment on the read;
+Column  8: end position of 2nd segment on the read;
+Column  9: start position of 2nd mapped region on the genome;
+Column 10: end position of 2nd mapped region on the genome;
+Column 11: circRNA ID supported by the junction read;
+Column 12: unique or multiple alignment of the junction read on the reference genome.MeCi
+output file 4:Poly(A)_junction_reads.bed.
+LH00281:42:223CTYLT4:4:1101:10978:8074	226	229	MT|66826|66303|-3|-	-3	+
+LH00281:42:223CTYLT4:4:1101:12483:28721	156	159	MT|67567|66114|-3|-	-3	+
+LH00281:42:223CTYLT4:4:1101:13405:8690	92	93	MT|94197|95080|-1|+	-1	+
+LH00281:42:223CTYLT4:4:1101:13405:8690	92	93	MT|120975|120092|-1|-	-1	+
+LH00281:42:223CTYLT4:4:1101:14142:19826	91	92	MT|67813|67540|-1|-	-1	+
+LH00281:42:223CTYLT4:4:1101:14490:14321	134	149	MT|71473|72063|-15|+	-15	+
+LH00281:42:223CTYLT4:4:1101:17233:15204	189	190	MT|60910|61539|-1|+	-1	+
+LH00281:42:223CTYLT4:4:1101:17395:6267	26	27	MT|66812|66114|-1|-	-1	+
+LH00281:42:223CTYLT4:4:1101:17597:17851	236	237	MT|63688|63982|-1|+	-1	+
+LH00281:42:223CTYLT4:4:1101:1769:10595	198	199	MT|66824|66113|-1|-	-1	+
+LH00281:42:223CTYLT4:4:1101:17921:2471	75	171	MT|467|700|-96|+	-96	+
+LH00281:42:223CTYLT4:4:1101:1842:27839	60	61	MT|63483|63980|-1|+	-1	+
+LH00281:42:223CTYLT4:4:1101:19038:12977	94	97	MT|46555|47180|-3|+	-3	+
+LH00281:42:223CTYLT4:4:1101:20381:24659	167	168	MT|71568|70612|-1|-	-1	+
+
+...
+LH00281:42:223CTYLT4:4:1101:20632:2597	123	221	MT|467|700|-98|+	-98	+
+LH00281:42:223CTYLT4:4:1101:21085:27054	68	69	MT|120092|120847|-1|+	-1	+
+LH00281:42:223CTYLT4:4:1101:21085:27054	68	69	MT|95080|94325|-1|-	-1	+
+LH00281:42:223CTYLT4:4:1101:22177:17879	128	129	MT|66824|66114|-1|-	-1	+
+LH00281:42:223CTYLT4:4:1101:24961:13173	123	146	MT|8779|11412|-23|+	-23	+
+LH00281:42:223CTYLT4:4:1101:27777:14714	16	19	MT|6859|7867|-3|+	-3	+
+LH00281:42:223CTYLT4:4:1101:27874:5384	92	93	MT|94197|95080|-1|+	-1	+
+LH00281:42:223CTYLT4:4:1101:27874:5384	92	93	MT|120975|120092|-1|-	-1	+
+LH00281:42:223CTYLT4:4:1101:28279:2079	213	214	MT|66919|66114|-1|-	-1	+
+LH00281:42:223CTYLT4:4:1101:28287:2093	213	214	MT|66919|66114|-1|-	-1	+
+Column 1:read ID;
+Column 2:The start position of the GAP in the read;
+Column3: The end position of the GAP in the read;
+Column 4:ID of a predicted circRNA in the pattern of "reference genome|start position|end position|repetitive or non-encoded bases at circle junction|strand orientation";
+
+Column 5:Number of gaps in the read during alignment;
+Column 6:strand orientation of a predicted circRNA.
+
+
+output file 5:Poly(A)_junction_reads.fa
+>MT|66826|66303|-3|-::LH00281:42:223CTYLT4:4:1101:10978:8074:226-229
+AAA
+>MT|67567|66114|-3|-::LH00281:42:223CTYLT4:4:1101:12483:28721:156-159
+AAC
+>MT|94197|95080|-1|+::LH00281:42:223CTYLT4:4:1101:13405:8690:92-93
+C
+>MT|120975|120092|-1|-::LH00281:42:223CTYLT4:4:1101:13405:8690:92-93
+C
+>MT|67813|67540|-1|-::LH00281:42:223CTYLT4:4:1101:14142:19826:91-92
+T
+>MT|71473|72063|-15|+::LH00281:42:223CTYLT4:4:1101:14490:14321:134-149
+GACGTTCACACAAAC
+>MT|60910|61539|-1|+::LH00281:42:223CTYLT4:4:1101:17233:15204:189-190
+A
+>MT|66812|66114|-1|-::LH00281:42:223CTYLT4:4:1101:17395:6267:26-27
+A
+
+...
+>MT|63688|63982|-1|+::LH00281:42:223CTYLT4:4:1101:17597:17851:236-237
+C
+>MT|66824|66113|-1|-::LH00281:42:223CTYLT4:4:1101:1769:10595:198-199
+A
+>MT|467|700|-96|+::LH00281:42:223CTYLT4:4:1101:17921:2471:75-171
+TGGGCAGTCTCCTTGGCTAGTTAGCCAAGGATGACTTGCCTGTGTCCTTTGTGTAAGGATCATTAATTATTATTCATAAAATGATCCTTTCAGCAG
+>MT|63483|63980|-1|+::LH00281:42:223CTYLT4:4:1101:1842:27839:60-61
+C
+>MT|46555|47180|-3|+::LH00281:42:223CTYLT4:4:1101:19038:12977:94-97
+CCA
+>MT|71568|70612|-1|-::LH00281:42:223CTYLT4:4:1101:20381:24659:167-168
+A
+>MT|467|700|-98|+::LH00281:42:223CTYLT4:4:1101:20632:2597:123-221
+TGGGCAGTCTCCTTGGCTAGCCTAGCCAAGGATGACTTGCCTGTGTCCTTGTGTGTAAGGATCATTAATTATTATTCATAAAATGATCCTTTCAGCAG
+Each two consecutive rows represent one complete cycle.
+The first column of the first row：ID of a predicted circRNA in the pattern of "reference genome|start position|end position|repetitive or non-encoded bases at circle junction|strand orientation";
+
+Column 2 of the first row：read ID;
+First row, third column: The position of the GAP in the read during alignment；
+Second row: The sequence of the GAP in the read.
+
+output file 6:High_confidence_transcripts.csv
+
+circ-ID	5-+10zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+11zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+12zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+1zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+2zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+3zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+4zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+5zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+6zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+7zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+8zm-plastid-100~3-.csv-M-P-circ_details-col1	5-+9zm-plastid-100~3-.csv-M-P-circ_details-col1	5--10zm-plastid-100~3-_.csv-M-P-circ_details-col1	5--11zm-plastid-100~3-_.csv-M-P-circ_details-col1	5--12zm-plastid-100~3-_.csv-M-P-circ_details-col1	5--1zm-plastid-100~3-.csv-M-P-circ_details-col1	5--2zm-plastid-100~3-.csv-M-P-circ_details-col1	5--3zm-plastid-100~3-_.csv-M-P-circ_details-col1	5--4zm-plastid-100~3-.csv-M-P-circ_details-col1	5--5zm-plastid-100~3-.csv-M-P-circ_details-col1	5--6zm-plastid-100~3-.csv-M-P-circ_details-col1	5--7zm-plastid-100~3-.csv-M-P-circ_details-col1	5--8zm-plastid-100~3-.csv-M-P-circ_details-col1	5--9zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+10zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+11zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+12zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+1zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+2zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+3zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+4zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+5zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+6zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+7zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+8zm-plastid-100~3-.csv-M-P-circ_details-col1	CK+9zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-10zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-11zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-12zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-1zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-2zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-3zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-4zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-5zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-6zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-7zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-8zm-plastid-100~3-.csv-M-P-circ_details-col1	CK-9zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-10zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-11zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-12zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-1zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-2zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-3zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-4zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-5zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-6zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-7zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-8zm-plastid-100~3-.csv-M-P-circ_details-col1	NUD-9zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-10zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-11zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-12zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-1zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-2zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-3zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-4zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-5zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-6zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-7zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-8zm-plastid-100~3-.csv-M-P-circ_details-col1	TAP-9zm-plastid-100~3-.csv-M-P-circ_details-col1	5'end	3'end	OP	strand
+MT|176013|176638|2|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	176013	176638	2	-
+MT|71372|72381|0|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	2	0	0	2	2	2	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	71372	72381	0	+
+MT|47087|47436|-2|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	47087	47436	-2	+
+MT|70062|69451|0|-	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	70062	69451	0	-
+MT|34545|34755|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	34545	34755	1	+
+MT|71531|71975|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	71531	71975	1	+
+MT|75793|76346|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	75793	76346	1	+
+MT|34392|35071|-1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	34392	35071	-1	+
+MT|74224|74624|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	1	0	1	1	1	1	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	74224	74624	1	+
+MT|175863|176319|1|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	175863	176319	1	-
+MT|34050|34694|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	2	2	2	0	0	2	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	34050	34694	1	+
+MT|74618|75619|3|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	74618	75619	3	+
+MT|72439|74619|1|+	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	72439	74619	1	+
+MT|34326|44122|0|+/-	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	34326	44122	0	+/-
+MT|79144|79524|0|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	79144	79524	0	+
+MT|88866|88511|-4|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	88866	88511	-4	-
+MT|5672|4395|1|-	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	5672	4395	1	-
+MT|76582|76297|-1|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	76582	76297	-1	-
+MT|117698|175960|0|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	117698	175960	0	-
+MT|79717|79438|0|-	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	79717	79438	0	-
+MT|175817|176268|0|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	175817	176268	0	-
+MT|88875|88564|0|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	2	2	2	0	0	2	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	88875	88564	0	-
+MT|70808|71152|0|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	70808	71152	0	+
+MT|81470|81017|0|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	0	1	1	1	1	1	1	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	2	0	0	0	0	2	2	2	0	0	0	2	1	0	2	2	2	1	1	1	0	0	0	1	0	0	1	1	1	0	0	0	81470	81017	0	-
+MT|34326|35120|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	2	0	0	0	0	2	2	2	0	0	0	0	3	0	0	0	0	3	3	3	0	0	0	0	2	0	0	0	0	2	2	2	0	0	0	2	0	0	2	2	2	0	0	0	34326	35120	1	+
+MT|4070|3805|0|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	4070	3805	0	-
+MT|69491|69789|-2|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	69491	69789	-2	+
+MT|70526|71213|1|+	0	0	0	0	2	0	0	0	0	2	2	2	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	70526	71213	1	+
+MT|34327|35071|-2|+	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	1	0	0	1	1	1	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	2	2	2	0	1	2	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	0	1	1	1	1	1	1	34327	35071	-2	+
+MT|86388|85799|-1|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	86388	85799	-1	-
+MT|73909|74466|0|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	73909	74466	0	+
+
+...
+MT|34508|35228|0|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	34508	35228	0	+
+MT|33501|33874|1|+	0	0	0	2	0	0	2	2	2	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	33501	33874	1	+
+MT|34622|34272|2|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	34622	34272	2	-
+MT|36440|37448|0|+	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	36440	37448	0	+
+MT|33697|34082|0|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	33697	34082	0	+
+MT|34572|35183|1|+	0	0	0	0	0	0	0	0	0	0	0	0	2	2	2	0	0	2	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	34572	35183	1	+
+MT|34954|36086|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	2	2	2	0	0	2	0	0	0	0	0	0	34954	36086	1	+
+MT|116212|175479|1|-	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	116212	175479	1	-
+MT|34522|34795|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	2	2	2	0	0	2	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	34522	34795	1	+
+MT|72306|72785|0|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	72306	72785	0	+
+MT|89151|88511|-2|-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	3	0	0	0	0	3	3	3	0	0	0	0	0	0	0	0	0	0	0	0	89151	88511	-2	-
+MT|79218|79544|1|+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	79218	79544	1	+
+
+Column 1:ID of a predicted circRNA in the pattern of "reference genome|start position|end position|repetitive or non-encoded bases at circle junction|strand orientation";
+Columns 2 to 73：junction read count of a predicted circRNA;
+Columns 74：start location of a predicted circRNA on the reference genome or chromosome;
+Columns 75：end location of a predicted circRNA on the reference genome or chromosome;
+Columns 76：Number of Overlaps/Gaps;
+Columns 77：strand orientation of a predicted circRNA.
+
+
+output file 7:5'end_information.csv3/'end_information.csv 
+
+end.1	end.1.1	5-+10zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+11zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+12zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+1zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+2zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+3zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+4zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+5zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+6zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+7zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+8zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5-+9zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--10zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--11zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--12zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--1zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--2zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--3zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--4zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--5zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--6zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--7zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--8zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	5--9zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+10zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+11zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+12zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+1zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+2zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+3zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+4zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+5zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+6zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+7zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+8zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK+9zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-10zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-11zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-12zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-1zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-2zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-3zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-4zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-5zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-6zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-7zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-8zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	CK-9zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-10zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-11zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-12zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-1zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-2zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-3zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-4zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-5zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-6zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-7zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-8zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	NUD-9zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-10zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-11zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-12zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-1zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-2zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-3zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-4zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-5zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-6zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-7zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-8zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	TAP-9zm-plastid-100~3-.csv-M-P-circ_details-col1_sum	Merge_Key	Annotation	Refer_Col1	Refer_Col2
+128663	-	6	6	6	17	13	6	17	17	17	13	13	13	20	20	20	11	8	20	11	11	11	8	8	8	0	0	0	2	0	0	2	2	2	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	7	7	7	2	2	7	2	2	2	2	2	2	4	4	4	4	3	4	4	4	4	3	3	3	128663-	Intergenic region	1-	"3'UTR, 3' end of psbA"
+821	-	55	55	55	44	51	55	44	44	44	51	51	51	54	54	54	70	71	54	70	70	70	71	71	71	50	50	50	44	56	50	44	44	44	56	56	56	53	53	53	38	39	53	38	38	38	39	39	39	80	80	80	78	61	80	78	78	78	61	61	61	53	53	53	50	39	53	50	50	50	39	39	39	821-	"CDS, psbA"	2-	"3'UTR, 3' end of psbA"
+33268	+	2	2	2	2	1	2	2	2	2	1	1	1	2	2	2	6	2	2	6	6	6	2	2	2	3	3	3	4	4	3	4	4	4	4	4	4	2	2	2	7	2	2	7	7	7	2	2	2	0	0	0	4	5	0	4	4	4	5	5	5	0	0	0	0	4	0	0	0	0	4	4	4	33268+	"CDS, atpI"	3-	"3'UTR, 3' end of psbA"
+64065	-	6	6	6	15	27	6	15	15	15	27	27	27	13	13	13	22	28	13	22	22	22	28	28	28	16	16	16	8	12	16	8	8	8	12	12	12	14	14	14	11	18	14	11	11	11	18	18	18	10	10	10	13	20	10	13	13	13	20	20	20	11	11	11	21	24	11	21	21	21	24	24	24	64065-	"CDS, psbE"	4-	"3'UTR, 3' end of psbA"
+110335	-	13	13	13	4	8	13	4	4	4	8	8	8	7	7	7	12	19	7	12	12	12	19	19	19	11	11	11	6	6	11	6	6	6	6	6	6	3	3	3	9	9	3	9	9	9	9	9	9	4	4	4	14	9	4	14	14	14	9	9	9	12	12	12	8	7	12	8	8	8	7	7	7	110335-	"CDS, ndhD"	5-	"3'UTR, 3' end of psbA"
+130974	+	3	3	3	8	8	3	8	8	8	8	8	8	0	0	0	3	8	0	3	3	3	8	8	8	2	2	2	0	3	2	0	0	0	3	3	3	6	6	6	0	3	6	0	0	0	3	3	3	4	4	4	3	0	4	3	3	3	0	0	0	4	4	4	3	4	4	3	3	3	4	4	4	130974+	"CDS, rps7"	6-	3'UTR
+62227	+	10	10	10	20	7	10	20	20	20	7	7	7	3	3	3	10	14	3	10	10	10	14	14	14	10	10	10	15	12	10	15	15	15	12	12	12	11	11	11	6	16	11	6	6	6	16	16	16	13	13	13	13	15	13	13	13	13	15	15	15	7	7	7	4	8	7	4	4	4	8	8	8	62227+	"CDS, petA"	7-	3'UTR
+43067	-	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	5	5	5	3	2	5	3	3	3	2	2	2	1	1	1	2	0	1	2	2	2	0	0	0	4	4	4	3	0	4	3	3	3	0	0	0	1	1	1	1	1	1	1	1	1	1	1	1	43067-	"CDS, psaA"	8-	3'UTR
+129783	+	0	0	0	0	3	0	0	0	0	3	3	3	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	2	2	2	1	1	2	1	1	1	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	129783+	"CDS, rps12 exon2"	9-	3'UTR
+53018	-	161	161	161	170	216	161	170	170	170	216	216	216	227	227	227	205	272	227	205	205	205	272	272	272	6	6	6	9	4	6	9	9	9	4	4	4	5	5	5	2	3	5	2	2	2	3	3	3	5	5	5	11	7	5	11	11	11	7	7	7	329	329	329	374	354	329	374	374	374	354	354	354	53018-	"5'UTR,5'end of ndhC"	10-	3'UTR
+61398	+	3	3	3	3	2	3	3	3	3	2	2	2	2	2	2	3	3	2	3	3	3	3	3	3	1	1	1	2	1	1	2	2	2	1	1	1	11	11	11	1	4	11	1	1	1	4	4	4	1	1	1	1	0	1	1	1	1	0	0	0	1	1	1	4	0	1	4	4	4	0	0	0	61398+	Intergenic region	11-	3'UTR
+46824	+	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	46824+	Intergenic region	12-	3'UTR
+110049	+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	2	1	0	0	0	2	2	2	110049+	3'UTR	13-	3'UTR
+10906	+	6	6	6	19	10	6	19	19	19	10	10	10	9	9	9	12	8	9	12	12	12	8	8	8	4	4	4	21	7	4	21	21	21	7	7	7	10	10	10	20	16	10	20	20	20	16	16	16	10	10	10	10	3	10	10	10	10	3	3	3	13	13	13	15	8	13	15	15	15	8	8	8	10906+	"CDS, psbC"	14-	3'UTR
+125893	-	14	14	14	12	19	14	12	12	12	19	19	19	19	19	19	15	21	19	15	15	15	21	21	21	24	24	24	30	28	24	30	30	30	28	28	28	15	15	15	27	24	15	27	27	27	24	24	24	14	14	14	21	12	14	21	21	21	12	12	12	22	22	22	23	14	22	23	23	23	14	14	14	125893-	Intergenic region	15-	3'UTR
+11694	+	2	2	2	1	3	2	1	1	1	3	3	3	1	1	1	5	0	1	5	5	5	0	0	0	0	0	0	7	0	0	7	7	7	0	0	0	2	2	2	2	1	2	2	2	2	1	1	1	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	11694+	Intergenic region	16-	3'UTR
+125467	-	8	8	8	16	8	8	16	16	16	8	8	8	8	8	8	3	12	8	3	3	3	12	12	12	6	6	6	4	7	6	4	4	4	7	7	7	7	7	7	4	2	7	4	4	4	2	2	2	5	5	5	9	2	5	9	9	9	2	2	2	1	1	1	2	9	1	2	2	2	9	9	9	125467-	"Intronic, trnI-GAU intron"	17-	3'UTR
+111126	-	0	0	0	3	4	0	3	3	3	4	4	4	3	3	3	9	4	3	9	9	9	4	4	4	6	6	6	8	3	6	8	8	8	3	3	3	2	2	2	4	5	2	4	4	4	5	5	5	3	3	3	1	0	3	1	1	1	0	0	0	3	3	3	3	3	3	3	3	3	3	3	3	111126-	"CDS, ndhD"	18-	3'UTR
+8357	+	83	83	83	48	76	83	48	48	48	76	76	76	94	94	94	102	95	94	102	102	102	95	95	95	1	1	1	1	0	1	1	1	1	0	0	0	1	1	1	0	2	1	0	0	0	2	2	2	0	0	0	2	4	0	2	2	2	4	4	4	115	115	115	122	123	115	122	122	122	123	123	123	8357+	Intergenic region	19-	3'UTR
+96979	+	429	429	429	454	467	429	454	454	454	467	467	467	483	483	483	503	541	483	503	503	503	541	541	541	1982	1982	1982	2450	1952	1982	2450	2450	2450	1952	1952	1952	2015	2015	2015	1639	1909	2015	1639	1639	1639	1909	1909	1909	412	412	412	570	399	412	570	570	570	399	399	399	833	833	833	897	836	833	897	897	897	836	836	836	96979+	"tRNA, 5'end of trnI-GAU-a1"	20-	3'UTR
+61727	-	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	61727-	Intergenic region	21-	3'UTR
+53766	-	1	1	1	3	5	1	3	3	3	5	5	5	3	3	3	7	1	3	7	7	7	1	1	1	0	0	0	2	6	0	2	2	2	6	6	6	3	3	3	2	4	3	2	2	2	4	4	4	7	7	7	5	2	7	5	5	5	2	2	2	4	4	4	3	3	4	3	3	3	3	3	3	53766-	"Intronic, trnV-UAC"	22-	3'UTR
+75553	+	11	11	11	11	15	11	11	11	11	15	15	15	12	12	12	14	13	12	14	14	14	13	13	13	3	3	3	15	16	3	15	15	15	16	16	16	15	15	15	9	9	15	9	9	9	9	9	9	12	12	12	19	17	12	19	19	19	17	17	17	6	6	6	8	10	6	8	8	8	10	10	10	75553+	"CDS, petD exon2"	23-	3'UTR
+48983	+	2324	2324	2324	2192	2620	2324	2192	2192	2192	2620	2620	2620	2584	2584	2584	3035	2902	2584	3035	3035	3035	2902	2902	2902	2525	2525	2525	3144	2657	2525	3144	3144	3144	2657	2657	2657	3139	3139	3139	2555	2992	3139	2555	2555	2555	2992	2992	2992	1797	1797	1797	2421	1805	1797	2421	2421	2421	1805	1805	1805	3170	3170	3170	3421	3411	3170	3421	3421	3421	3411	3411	3411	48983+	"Intronic, 5'end of trnL-UAA intron"	24-	3'UTR
+56391	-	1494	1494	1494	1445	1572	1494	1445	1445	1445	1572	1572	1572	1646	1646	1646	1863	1909	1646	1863	1863	1863	1909	1909	1909	29	29	29	47	34	29	47	47	47	34	34	34	35	35	35	36	45	35	36	36	36	45	45	45	22	22	22	34	22	22	34	34	34	22	22	22	3051	3051	3051	3213	3268	3051	3213	3213	3213	3268	3268	3268	56391-	"5'UTR, 5'end of atpB"	25-	3'UTR
+74734	+	1	1	1	0	2	1	0	0	0	2	2	2	0	0	0	3	2	0	3	3	3	2	2	2	0	0	0	1	4	0	1	1	1	4	4	4	0	0	0	3	3	0	3	3	3	3	3	3	2	2	2	1	2	2	1	1	1	2	2	2	6	6	6	1	1	6	1	1	1	1	1	1	74734+	"CDS, petD exon1"	26-	3'UTR
+124751	-	9	9	9	3	4	9	3	3	3	4	4	4	4	4	4	6	7	4	6	6	6	7	7	7	5	5	5	1	9	5	1	1	1	9	9	9	4	4	4	7	2	4	7	7	7	2	2	2	6	6	6	12	5	6	12	12	12	5	5	5	6	6	6	10	1	6	10	10	10	1	1	1	124751-	"tRNA, trnA-UGC-a2 exon1"	27-	3'UTR
+
+...
+12434	-	85	85	85	62	51	85	62	62	62	51	51	51	29	29	29	16	24	29	16	16	16	24	24	24	7	7	7	17	20	7	17	17	17	20	20	20	14	14	14	46	5	14	46	46	46	5	5	5	7	7	7	11	3	7	11	11	11	3	3	3	72	72	72	60	48	72	60	60	60	48	48	48	12434-	Intergenic region	39-	3'UTR
+40202	+	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	40202+	Intergenic region	40-	3'UTR
+72674	+	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	0	3	1	0	0	0	3	3	3	2	2	2	1	2	2	1	1	1	2	2	2	4	4	4	0	0	4	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	2	1	0	2	2	2	1	1	1	72674+	Intergenic region	41-	3'UTR
+72591	+	2	2	2	0	0	2	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	1	0	0	1	1	1	0	0	0	2	2	2	5	0	2	5	5	5	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	3	3	3	0	3	3	0	0	0	3	3	3	72591+	Intergenic region	42-	3'UTR
+131353	+	1	1	1	1	0	1	1	1	1	0	0	0	2	2	2	0	0	2	0	0	0	0	0	0	0	0	0	0	5	0	0	0	0	5	5	5	3	3	3	1	1	3	1	1	1	1	1	1	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	0	2	0	0	0	0	2	2	2	131353+	"CDS, ndhB exon1"	43-	3'UTR
+40588	-	0	0	0	3	3	0	3	3	3	3	3	3	0	0	0	1	1	0	1	1	1	1	1	1	4	4	4	2	3	4	2	2	2	3	3	3	3	3	3	1	2	3	1	1	1	2	2	2	3	3	3	2	1	3	2	2	2	1	1	1	4	4	4	6	5	4	6	6	6	5	5	5	40588-	"CDS, psbB"	44-	3'UTR
+2127	-	0	0	0	2	2	0	2	2	2	2	2	2	1	1	1	1	1	1	1	1	1	1	1	1	2	2	2	1	0	2	1	1	1	0	0	0	1	1	1	2	0	1	2	2	2	0	0	0	0	0	0	0	5	0	0	0	0	5	5	5	3	3	3	0	1	3	0	0	0	1	1	1	2127-	"Intronic, trnK-UUU intron"	45-	3'UTR
+32692	+	694	694	694	659	798	694	659	659	659	798	798	798	850	850	850	979	963	850	979	979	979	963	963	963	16	16	16	17	13	16	17	17	17	13	13	13	16	16	16	20	28	16	20	20	20	28	28	28	10	10	10	9	7	10	9	9	9	7	7	7	1398	1398	1398	1406	1385	1398	1406	1406	1406	1385	1385	1385	32692+	"5'UTR, 5'end of atpI"	46-	3'UTR
+40286	-	8	8	8	0	6	8	0	0	0	6	6	6	5	5	5	8	10	5	8	8	8	10	10	10	8	8	8	2	4	8	2	2	2	4	4	4	6	6	6	7	9	6	7	7	7	9	9	9	5	5	5	5	8	5	5	5	5	8	8	8	10	10	10	9	8	10	9	9	9	8	8	8	40286-	"CDS, psbB"	47-	3'UTR
+788	+	1	1	1	0	0	1	0	0	0	0	0	0	0	0	0	2	0	0	2	2	2	0	0	0	1	1	1	2	0	1	2	2	2	0	0	0	1	1	1	0	1	1	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	1	1	1	2	3	1	2	2	2	3	3	3	788+	Intergenic region	48-	3'UTR
+73104	+	431	431	431	442	491	431	442	442	442	491	491	491	443	443	443	475	477	443	475	475	475	477	477	477	1114	1114	1114	1372	1268	1114	1372	1372	1372	1268	1268	1268	1397	1397	1397	1224	1336	1397	1224	1224	1224	1336	1336	1336	513	513	513	622	432	513	622	622	622	432	432	432	858	858	858	844	841	858	844	844	844	841	841	841	73104+	"5'UTR, 5'end of petB"	49-	3'UTR
+138402	+	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	1	1	1	1	1	1	0	1	1	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	138402+	"CDS, rpl2 exon1"	50-	3'UTR
+125552	+	2	2	2	0	1	2	0	0	0	1	1	1	0	0	0	1	1	0	1	1	1	1	1	1	1	1	1	0	0	1	0	0	0	0	0	0	1	1	1	0	1	1	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0	0	0	0	2	2	2	1	0	2	1	1	1	0	0	0	125552+	Intergenic region	51-	3'UTR
+
+Column 1：start/end location of a predicted circRNA on the reference genome or chromosome;
+Column 2：Strand orientation of the current end position (either + or -);
+Columns 3 to 74： Read count of the current end within each data group;
+Columns 75：The combination of the end position and strand orientation, formatted as end+ or end-;
+Columns 76：Annotation information for the current position;
+Columns 77：End position and strand orientation combined format: end+ or end-. The difference from column 75 is that column 75 contains the actual data, while column 77 is the combination from the annotation file;
+Columns 78：Annotation information for the current position. The difference from column 76 is that column 76 contains the annotation information from the actual data, while column 78 contains the annotation information from the end of the annotation file.
+If you use Hiten, please cite the following papers:
